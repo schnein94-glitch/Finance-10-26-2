@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Finanz Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons for iOS look -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        iosBg: '#F2F2F7',
+                        iosCard: '#FFFFFF',
+                        iosPrimary: '#007AFF',
+                        iosGreen: '#34C759',
+                        iosRed: '#FF3B30',
+                        iosOrange: '#FF9500',
+                        iosPurple: '#AF52DE',
+                        iosTeal: '#30B0C7',
+                        iosGray: '#8E8E93',
+                        iosDarkBg: '#000000',
+                        iosDarkCard: '#1C1C1E',
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Helvetica Neue', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Mobile webapp feel */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        /* Hide scrollbars for crisp UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Custom Checkbox styles */
+        .ios-checkbox-purple:checked {
+            background-color: #AF52DE;
+            border-color: #AF52DE;
+        }
+        .ios-checkbox-teal:checked {
+            background-color: #30B0C7;
+            border-color: #30B0C7;
+        }
+    </style>
+</head>
+<body class="bg-iosBg dark:bg-iosDarkBg text-gray-900 dark:text-gray-100 font-sans min-h-screen flex flex-col justify-between pb-24 pt-safe">
+
+    <!-- Header Section -->
+    <header class="px-5 pt-6 pb-3 sticky top-0 bg-iosBg/80 dark:bg-iosDarkBg/80 backdrop-blur-md z-20 border-b border-gray-200/50 dark:border-gray-800/50 flex justify-between items-center">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-iosGray" id="current-date-str">Oktober 2026</p>
+            <h1 class="text-2xl font-bold tracking-tight" id="header-title">Übersicht</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <!-- Reset Button ONLY for Monthly Expenses Tab -->
+            <button id="reset-month-btn" onclick="confirmMonthReset()" title="Monatliche Ausgaben zurücksetzen" class="hidden w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-iosRed hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                <i class="ph ph-arrows-counter-clockwise text-xl"></i>
+            </button>
+            <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-300">
+                <i class="ph ph-moon-stars text-xl dark:hidden"></i>
+                <i class="ph ph-sun text-xl hidden dark:block text-amber-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 px-4 pt-3 max-w-md mx-auto w-full space-y-4">
+
+        <!-- TAB 1: FIXKOSTEN (LEFT) -->
+        <section id="tab-fixkosten" class="tab-content hidden space-y-4">
+            <!-- Total Card -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 flex justify-between items-center">
+                <div>
+                    <span class="text-xs text-iosGray font-medium uppercase tracking-wider">Fixkosten Summe</span>
+                    <div class="text-3xl font-extrabold text-iosPurple mt-0.5" id="fix-total">0 €</div>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-iosGray font-medium block">Bezahlt</span>
+                    <span class="text-lg font-bold text-iosGreen" id="fix-paid-summary">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- Add Fixkosten Button & Input -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-base font-bold">Posten hinzufügen</h2>
+                    <span class="text-xs text-iosPurple font-semibold">Neu</span>
+                </div>
+                <form id="add-fix-form" onsubmit="addFixItem(event)" class="flex gap-2">
+                    <input type="text" id="fix-title-input" placeholder="Titel (z.B. Netflix)" required class="flex-1 bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-iosPurple">
+                    <input type="number" step="0.01" id="fix-amount-input" placeholder="€" required class="w-24 bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-iosPurple">
+                    <button type="submit" class="bg-iosPurple text-white px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform flex items-center justify-center">
+                        <i class="ph ph-plus font-bold"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Fixkosten Checklist -->
+            <div class="bg-iosCard dark:bg-iosDarkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                    <span class="text-xs font-bold text-iosGray uppercase tracking-wider">Checkliste Monatl. Fixkosten</span>
+                    <button onclick="resetFixCheckboxes()" class="text-xs font-semibold text-iosPurple hover:opacity-80">Alle zurücksetzen</button>
+                </div>
+                <ul id="fix-list" class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <!-- Items rendered dynamically -->
+                </ul>
+            </div>
+        </section>
+
+        <!-- TAB 2: ÜBERSICHT (CENTER) -->
+        <section id="tab-uebersicht" class="tab-content space-y-4">
+            <!-- Asset Input Card -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 space-y-4">
+                <h2 class="text-base font-bold flex items-center gap-2">
+                    <i class="ph ph-wallet text-iosPrimary text-xl"></i>
+                    Monatssaldo eintragen
+                </h2>
+                <form id="overview-form" onsubmit="saveMonthlyBalance(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-iosGray mb-1">Monat & Jahr</label>
+                        <input type="month" id="overview-month" required class="w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-iosPrimary">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-iosGray mb-1">Kontostand (€)</label>
+                            <input type="number" step="0.01" id="overview-konto" placeholder="0.00" required class="w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-iosPrimary">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-iosGray mb-1">Depotstand (€)</label>
+                            <input type="number" step="0.01" id="overview-depot" placeholder="0.00" required class="w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-iosPrimary">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-iosPrimary text-white py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all shadow-md shadow-iosPrimary/20">
+                        Eintrag speichern
+                    </button>
+                </form>
+            </div>
+
+            <!-- Current Calculated Total Card -->
+            <div id="latest-networth-card" class="bg-gradient-to-br from-iosPrimary to-blue-600 text-white p-5 rounded-2xl shadow-lg space-y-2 relative overflow-hidden">
+                <div class="absolute -right-4 -bottom-4 text-white/10 text-8xl font-bold">
+                    <i class="ph ph-trend-up"></i>
+                </div>
+                <p class="text-xs font-medium uppercase tracking-wider text-blue-100">Aktuelles Gesamtvermögen</p>
+                <div class="text-3xl font-extrabold tracking-tight" id="latest-total-networth">0,00 €</div>
+                <div class="flex justify-between text-xs text-blue-100 pt-2 border-t border-white/10">
+                    <span>Konto: <strong id="latest-konto-val">0 €</strong></span>
+                    <span>Depot: <strong id="latest-depot-val">0 €</strong></span>
+                </div>
+            </div>
+
+            <!-- History List -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-iosGray uppercase tracking-wider px-1">Verlauf / Gespeicherte Monate</h3>
+                <div id="history-list" class="space-y-2">
+                    <!-- History entries rendered dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: MONATLICHE AUSGABEN -->
+        <section id="tab-ausgaben" class="tab-content hidden space-y-4">
+            <!-- Overall Expense Summary -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-iosGray uppercase tracking-wider">Ausgaben Übersicht</span>
+                    <button onclick="openBudgetModal()" class="text-xs text-iosPrimary font-semibold flex items-center gap-1">
+                        <i class="ph ph-pencil-simple"></i> Budgets anpassen
+                    </button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center py-1">
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-iosGray block uppercase font-bold">Budget</span>
+                        <span class="text-base font-bold" id="total-budget-display">800 €</span>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-iosGray block uppercase font-bold">Ausgegeben</span>
+                        <span class="text-base font-bold text-iosOrange" id="total-spent-display">0 €</span>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-xl">
+                        <span class="text-[10px] text-iosGray block uppercase font-bold">Verbleibend</span>
+                        <span class="text-base font-bold text-iosGreen" id="total-remaining-display">800 €</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Cards with Budgets -->
+            <div class="space-y-3" id="categories-container">
+                <!-- Dynamic Category Cards -->
+            </div>
+
+            <!-- Recent Expenses Log -->
+            <div class="bg-iosCard dark:bg-iosDarkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 p-4 space-y-3">
+                <h3 class="text-xs font-bold text-iosGray uppercase tracking-wider">Gebuchte Ausgaben</h3>
+                <div id="expenses-log-list" class="space-y-2 max-h-60 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                    <!-- Dynamic expenses list -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: AUSLAGEN (NEW TAB) -->
+        <section id="tab-auslagen" class="tab-content hidden space-y-4">
+            <!-- Total Card -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 flex justify-between items-center">
+                <div>
+                    <span class="text-xs text-iosGray font-medium uppercase tracking-wider">Gesamte Auslagen</span>
+                    <div class="text-3xl font-extrabold text-iosTeal mt-0.5" id="auslagen-total">0 €</div>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-iosGray font-medium block">Erledigt</span>
+                    <span class="text-lg font-bold text-iosGreen" id="auslagen-paid-summary">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- Add Auslage Button & Input -->
+            <div class="bg-iosCard dark:bg-iosDarkCard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-base font-bold">Auslage hinzufügen</h2>
+                    <span class="text-xs text-iosTeal font-semibold">Neu</span>
+                </div>
+                <form id="add-auslagen-form" onsubmit="addAuslagenItem(event)" class="flex gap-2">
+                    <input type="text" id="auslagen-title-input" placeholder="Titel (z.B. Parkhaus e+k)" required class="flex-1 bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-iosTeal">
+                    <input type="number" step="0.01" id="auslagen-amount-input" placeholder="€" required class="w-24 bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-iosTeal">
+                    <button type="submit" class="bg-iosTeal text-white px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform flex items-center justify-center">
+                        <i class="ph ph-plus font-bold"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Auslagen Checklist -->
+            <div class="bg-iosCard dark:bg-iosDarkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                    <span class="text-xs font-bold text-iosGray uppercase tracking-wider">Auslagen Liste</span>
+                    <button onclick="resetAuslagenCheckboxes()" class="text-xs font-semibold text-iosTeal hover:opacity-80">Alle zurücksetzen</button>
+                </div>
+                <ul id="auslagen-list" class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <!-- Items rendered dynamically -->
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Navigation Bar (iOS Bottom Tab Bar - 4 Tabs) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-iosCard/90 dark:bg-iosDarkCard/90 backdrop-blur-lg border-t border-gray-200/60 dark:border-gray-800/80 px-3 py-2 flex justify-around items-center z-30 pb-safe">
+        <button onclick="switchTab('fixkosten')" id="nav-fixkosten" class="nav-btn flex flex-col items-center gap-1 text-iosGray hover:text-iosPurple transition-colors flex-1">
+            <i class="ph ph-check-square-offset text-2xl"></i>
+            <span class="text-[10px] font-medium">Fixkosten</span>
+        </button>
+        <button onclick="switchTab('uebersicht')" id="nav-uebersicht" class="nav-btn flex flex-col items-center gap-1 text-iosPrimary transition-colors flex-1">
+            <i class="ph ph-chart-pie-slice text-2xl"></i>
+            <span class="text-[10px] font-semibold">Übersicht</span>
+        </button>
+        <button onclick="switchTab('ausgaben')" id="nav-ausgaben" class="nav-btn flex flex-col items-center gap-1 text-iosGray hover:text-iosOrange transition-colors flex-1">
+            <i class="ph ph-receipt text-2xl"></i>
+            <span class="text-[10px] font-medium">Monatlich</span>
+        </button>
+        <button onclick="switchTab('auslagen')" id="nav-auslagen" class="nav-btn flex flex-col items-center gap-1 text-iosGray hover:text-iosTeal transition-colors flex-1">
+            <i class="ph ph-hand-coins text-2xl"></i>
+            <span class="text-[10px] font-medium">Auslagen</span>
+        </button>
+    </nav>
+
+    <!-- Modal for Adding Expense -->
+    <div id="expense-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-iosCard dark:bg-iosDarkCard w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold" id="modal-cat-title">Ausgabe buchen</h3>
+                <button onclick="closeExpenseModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-iosGray">
+                    <i class="ph ph-x font-bold"></i>
+                </button>
+            </div>
+            <form id="add-expense-form" onsubmit="saveExpense(event)" class="space-y-3">
+                <input type="hidden" id="expense-cat-id">
+                <div>
+                    <label class="block text-xs font-medium text-iosGray mb-1">Betrag (€) *</label>
+                    <input type="number" step="0.01" id="expense-amount-input" placeholder="0.00" required autofocus class="w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-3 rounded-xl text-lg font-bold text-iosOrange focus:outline-none focus:ring-2 focus:ring-iosOrange">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-iosGray mb-1">Bezeichnung / Notiz <span class="text-gray-400 font-normal">(Optional)</span></label>
+                    <input type="text" id="expense-title-input" placeholder="z.B. Supermarkt (optional)" class="w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-iosOrange">
+                </div>
+                <button type="submit" class="w-full bg-iosOrange text-white py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all shadow-md shadow-iosOrange/20">
+                    Ausgabe buchen
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Month Reset Confirmation -->
+    <div id="reset-confirm-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-iosCard dark:bg-iosDarkCard w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl text-center">
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900/40 text-iosRed rounded-full flex items-center justify-center mx-auto text-2xl">
+                <i class="ph ph-warning-circle font-bold"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold">Ausgaben zurücksetzen?</h3>
+                <p class="text-xs text-iosGray mt-1.5 leading-relaxed">
+                    Möchtest du wirklich alle gebuchten Monatsausgaben für diesen Monat auf 0 € zurücksetzen? Deine Fixkosten, Auslagen und Vermögenshistorie bleiben unverändert.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="closeResetModal()" class="w-full bg-gray-100 dark:bg-gray-800 py-2.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 active:scale-95 transition">
+                    Abbrechen
+                </button>
+                <button onclick="executeMonthReset()" class="w-full bg-iosRed text-white py-2.5 rounded-xl text-xs font-bold active:scale-95 transition shadow-sm">
+                    Zurücksetzen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Editing Budgets -->
+    <div id="budget-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-iosCard dark:bg-iosDarkCard w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold">Budgets anpassen</h3>
+                <button onclick="closeBudgetModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-iosGray">
+                    <i class="ph ph-x font-bold"></i>
+                </button>
+            </div>
+            <form id="budget-edit-form" onsubmit="saveBudgets(event)" class="space-y-3">
+                <div id="budget-inputs-container" class="space-y-3">
+                    <!-- Budget fields dynamically injected -->
+                </div>
+                <button type="submit" class="w-full bg-iosPrimary text-white py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all">
+                    Budgets aktualisieren
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- INITIAL DATA STRUCTURES & DEFAULTS ---
+        const defaultFixItems = [
+            { id: '1', title: 'Miete', amount: 1061, checked: true },
+            { id: '2', title: 'Räume', amount: 20, checked: true },
+            { id: '3', title: 'Gym', amount: 24, checked: true },
+            { id: '4', title: 'RSA', amount: 314, checked: true },
+            { id: '5', title: 'Strom', amount: 25, checked: true },
+            { id: '6', title: 'Handy', amount: 20, checked: true },
+            { id: '7', title: 'Prime', amount: 8, checked: true },
+            { id: '8', title: 'Internet', amount: 30, checked: true },
+            { id: '9', title: 'Netfli', amount: 0, checked: false },
+            { id: '10', title: 'GEZ', amount: 18, checked: false },
+            { id: '11', title: 'Knuspr', amount: 10, checked: false },
+            { id: '12', title: 'Spotify', amount: 13, checked: false }
+        ];
+
+        const defaultAuslagenItems = [
+            { id: '1', title: 'Parkhaus e+k (Auslagen Okt)', amount: 18, checked: false }
+        ];
+
+        const defaultCategories = [
+            { id: 'supermarkt', name: 'Supermarkt', budget: 260, icon: 'ph-shopping-cart', color: 'bg-emerald-500' },
+            { id: 'mittag', name: 'Mittag', budget: 100, icon: 'ph-fork-knife', color: 'bg-amber-500' },
+            { id: 'freizeit', name: 'Freizeit', budget: 300, icon: 'ph-ticket', color: 'bg-indigo-500' },
+            { id: 'fussball', name: 'Fußball', budget: 140, icon: 'ph-soccer-ball', color: 'bg-blue-500' }
+        ];
+
+        // State variables
+        let fixItems = JSON.parse(localStorage.getItem('ft_fixItems')) || defaultFixItems;
+        let auslagenItems = JSON.parse(localStorage.getItem('ft_auslagenItems')) || defaultAuslagenItems;
+        let overviewHistory = JSON.parse(localStorage.getItem('ft_overviewHistory')) || [];
+        let categories = JSON.parse(localStorage.getItem('ft_categories')) || defaultCategories;
+        let expenses = JSON.parse(localStorage.getItem('ft_expenses')) || [];
+
+        // Helper formatting functions
+        const formatEuro = (val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val);
+        const formatEuroShort = (val) => `${Math.round(val)} €`;
+
+        // Load App state
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('overview-month').value = `${year}-${month}`;
+
+            renderFixkosten();
+            renderAuslagen();
+            renderOverview();
+            renderAusgaben();
+            switchTab('uebersicht'); // Default tab
+        });
+
+        // Save State Helpers
+        function saveFixItems() {
+            localStorage.setItem('ft_fixItems', JSON.stringify(fixItems));
+            renderFixkosten();
+        }
+
+        function saveAuslagenItems() {
+            localStorage.setItem('ft_auslagenItems', JSON.stringify(auslagenItems));
+            renderAuslagen();
+        }
+
+        function saveHistoryState() {
+            localStorage.setItem('ft_overviewHistory', JSON.stringify(overviewHistory));
+            renderOverview();
+        }
+
+        function saveExpensesState() {
+            localStorage.setItem('ft_expenses', JSON.stringify(expenses));
+            renderAusgaben();
+        }
+
+        function saveCategoriesState() {
+            localStorage.setItem('ft_categories', JSON.stringify(categories));
+            renderAusgaben();
+        }
+
+        // --- TAB SWITCHING ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-iosPrimary', 'text-iosPurple', 'text-iosOrange', 'text-iosTeal');
+                btn.classList.add('text-iosGray');
+            });
+
+            const headerTitle = document.getElementById('header-title');
+            const resetBtn = document.getElementById('reset-month-btn');
+
+            if (tabId === 'fixkosten') {
+                document.getElementById('tab-fixkosten').classList.remove('hidden');
+                document.getElementById('nav-fixkosten').classList.add('text-iosPurple');
+                document.getElementById('nav-fixkosten').classList.remove('text-iosGray');
+                headerTitle.textContent = 'Fixkosten';
+                resetBtn.classList.add('hidden');
+            } else if (tabId === 'uebersicht') {
+                document.getElementById('tab-uebersicht').classList.remove('hidden');
+                document.getElementById('nav-uebersicht').classList.add('text-iosPrimary');
+                document.getElementById('nav-uebersicht').classList.remove('text-iosGray');
+                headerTitle.textContent = 'Übersicht';
+                resetBtn.classList.add('hidden');
+            } else if (tabId === 'ausgaben') {
+                document.getElementById('tab-ausgaben').classList.remove('hidden');
+                document.getElementById('nav-ausgaben').classList.add('text-iosOrange');
+                document.getElementById('nav-ausgaben').classList.remove('text-iosGray');
+                headerTitle.textContent = 'Monatliche Ausgaben';
+                resetBtn.classList.remove('hidden');
+            } else if (tabId === 'auslagen') {
+                document.getElementById('tab-auslagen').classList.remove('hidden');
+                document.getElementById('nav-auslagen').classList.add('text-iosTeal');
+                document.getElementById('nav-auslagen').classList.remove('text-iosGray');
+                headerTitle.textContent = 'Auslagen';
+                resetBtn.classList.add('hidden');
+            }
+        }
+
+        // --- TAB 1: FIXKOSTEN LOGIC ---
+        function renderFixkosten() {
+            const listEl = document.getElementById('fix-list');
+            listEl.innerHTML = '';
+
+            let total = 0;
+            let paidCount = 0;
+
+            fixItems.forEach((item) => {
+                total += Number(item.amount);
+                if (item.checked) paidCount++;
+
+                const li = document.createElement('li');
+                li.className = 'px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors';
+                li.innerHTML = `
+                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleFixCheck('${item.id}')"
+                            class="ios-checkbox-purple w-5 h-5 rounded-full border-gray-300 dark:border-gray-600 text-iosPurple focus:ring-iosPurple transition">
+                        <span class="text-sm font-medium ${item.checked ? 'line-through text-iosGray' : ''}">${item.title}</span>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold ${item.checked ? 'text-iosGray' : ''}">${formatEuro(item.amount)}</span>
+                        <button onclick="deleteFixItem('${item.id}')" class="text-gray-400 hover:text-iosRed p-1">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(li);
+            });
+
+            document.getElementById('fix-total').textContent = formatEuro(total);
+            document.getElementById('fix-paid-summary').textContent = `${paidCount} / ${fixItems.length}`;
+        }
+
+        function toggleFixCheck(id) {
+            fixItems = fixItems.map(item => item.id === id ? { ...item, checked: !item.checked } : item);
+            saveFixItems();
+        }
+
+        function addFixItem(e) {
+            e.preventDefault();
+            const titleInput = document.getElementById('fix-title-input');
+            const amountInput = document.getElementById('fix-amount-input');
+
+            const newItem = {
+                id: Date.now().toString(),
+                title: titleInput.value.trim(),
+                amount: parseFloat(amountInput.value) || 0,
+                checked: false
+            };
+
+            fixItems.push(newItem);
+            saveFixItems();
+
+            titleInput.value = '';
+            amountInput.value = '';
+        }
+
+        function deleteFixItem(id) {
+            fixItems = fixItems.filter(item => item.id !== id);
+            saveFixItems();
+        }
+
+        function resetFixCheckboxes() {
+            fixItems = fixItems.map(item => ({ ...item, checked: false }));
+            saveFixItems();
+        }
+
+        // --- TAB 4: AUSLAGEN LOGIC ---
+        function renderAuslagen() {
+            const listEl = document.getElementById('auslagen-list');
+            listEl.innerHTML = '';
+
+            let total = 0;
+            let paidCount = 0;
+
+            auslagenItems.forEach((item) => {
+                total += Number(item.amount);
+                if (item.checked) paidCount++;
+
+                const li = document.createElement('li');
+                li.className = 'px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors';
+                li.innerHTML = `
+                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleAuslagenCheck('${item.id}')"
+                            class="ios-checkbox-teal w-5 h-5 rounded-full border-gray-300 dark:border-gray-600 text-iosTeal focus:ring-iosTeal transition">
+                        <span class="text-sm font-medium ${item.checked ? 'line-through text-iosGray' : ''}">${item.title}</span>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold ${item.checked ? 'text-iosGray' : ''}">${formatEuro(item.amount)}</span>
+                        <button onclick="deleteAuslagenItem('${item.id}')" class="text-gray-400 hover:text-iosRed p-1">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(li);
+            });
+
+            document.getElementById('auslagen-total').textContent = formatEuro(total);
+            document.getElementById('auslagen-paid-summary').textContent = `${paidCount} / ${auslagenItems.length}`;
+        }
+
+        function toggleAuslagenCheck(id) {
+            auslagenItems = auslagenItems.map(item => item.id === id ? { ...item, checked: !item.checked } : item);
+            saveAuslagenItems();
+        }
+
+        function addAuslagenItem(e) {
+            e.preventDefault();
+            const titleInput = document.getElementById('auslagen-title-input');
+            const amountInput = document.getElementById('auslagen-amount-input');
+
+            const newItem = {
+                id: Date.now().toString(),
+                title: titleInput.value.trim(),
+                amount: parseFloat(amountInput.value) || 0,
+                checked: false
+            };
+
+            auslagenItems.push(newItem);
+            saveAuslagenItems();
+
+            titleInput.value = '';
+            amountInput.value = '';
+        }
+
+        function deleteAuslagenItem(id) {
+            auslagenItems = auslagenItems.filter(item => item.id !== id);
+            saveAuslagenItems();
+        }
+
+        function resetAuslagenCheckboxes() {
+            auslagenItems = auslagenItems.map(item => ({ ...item, checked: false }));
+            saveAuslagenItems();
+        }
+
+        // --- TAB 2: ÜBERSICHT LOGIC ---
+        function saveMonthlyBalance(e) {
+            e.preventDefault();
+            const monthVal = document.getElementById('overview-month').value;
+            const kontoVal = parseFloat(document.getElementById('overview-konto').value) || 0;
+            const depotVal = parseFloat(document.getElementById('overview-depot').value) || 0;
+
+            const existingIndex = overviewHistory.findIndex(h => h.month === monthVal);
+            const newEntry = {
+                id: Date.now().toString(),
+                month: monthVal,
+                konto: kontoVal,
+                depot: depotVal,
+                total: kontoVal + depotVal
+            };
+
+            if (existingIndex >= 0) {
+                overviewHistory[existingIndex] = newEntry;
+            } else {
+                overviewHistory.unshift(newEntry);
+            }
+
+            overviewHistory.sort((a, b) => b.month.localeCompare(a.month));
+
+            saveHistoryState();
+            document.getElementById('overview-konto').value = '';
+            document.getElementById('overview-depot').value = '';
+        }
+
+        function deleteHistoryEntry(id) {
+            overviewHistory = overviewHistory.filter(h => h.id !== id);
+            saveHistoryState();
+        }
+
+        function renderOverview() {
+            const historyListEl = document.getElementById('history-list');
+            historyListEl.innerHTML = '';
+
+            if (overviewHistory.length > 0) {
+                const latest = overviewHistory[0];
+                document.getElementById('latest-total-networth').textContent = formatEuro(latest.total);
+                document.getElementById('latest-konto-val').textContent = formatEuroShort(latest.konto);
+                document.getElementById('latest-depot-val').textContent = formatEuroShort(latest.depot);
+            } else {
+                document.getElementById('latest-total-networth').textContent = '0,00 €';
+                document.getElementById('latest-konto-val').textContent = '0 €';
+                document.getElementById('latest-depot-val').textContent = '0 €';
+            }
+
+            overviewHistory.forEach(entry => {
+                const [year, month] = entry.month.split('-');
+                const dateObj = new Date(year, parseInt(month) - 1);
+                const monthName = dateObj.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+
+                const card = document.createElement('div');
+                card.className = 'bg-iosCard dark:bg-iosDarkCard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800/80 flex justify-between items-center';
+                card.innerHTML = `
+                    <div>
+                        <div class="text-xs font-semibold text-iosGray capitalize">${monthName}</div>
+                        <div class="text-base font-extrabold text-iosPrimary mt-0.5">${formatEuro(entry.total)}</div>
+                        <div class="text-xs text-iosGray flex gap-3 mt-1">
+                            <span>Konto: ${formatEuro(entry.konto)}</span>
+                            <span>Depot: ${formatEuro(entry.depot)}</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteHistoryEntry('${entry.id}')" class="text-gray-400 hover:text-iosRed p-2">
+                        <i class="ph ph-trash text-lg"></i>
+                    </button>
+                `;
+                historyListEl.appendChild(card);
+            });
+        }
+
+        // --- TAB 3: MONATLICHE AUSGABEN LOGIC ---
+        function renderAusgaben() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+
+            let totalBudget = 0;
+            let totalSpent = 0;
+
+            categories.forEach(cat => {
+                totalBudget += cat.budget;
+                const catSpent = expenses
+                    .filter(e => e.catId === cat.id)
+                    .reduce((sum, e) => sum + e.amount, 0);
+
+                totalSpent += catSpent;
+                const remaining = cat.budget - catSpent;
+                const percent = Math.min(100, Math.max(0, (catSpent / cat.budget) * 100)) || 0;
+
+                const card = document.createElement('div');
+                card.className = 'bg-iosCard dark:bg-iosDarkCard p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800/80 space-y-3';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl ${cat.color} text-white flex items-center justify-center text-lg">
+                                <i class="ph ${cat.icon}"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm">${cat.name}</h4>
+                                <span class="text-xs text-iosGray">Budget: ${formatEuroShort(cat.budget)}</span>
+                            </div>
+                        </div>
+                        <button onclick="openExpenseModal('${cat.id}', '${cat.name}')" class="bg-gray-100 dark:bg-gray-800 text-iosPrimary px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition">
+                            + Buchen
+                        </button>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full ${percent > 90 ? 'bg-iosRed' : 'bg-iosOrange'} transition-all duration-300 rounded-full" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs pt-0.5">
+                            <span class="text-iosGray">Ausgegeben: <strong class="text-gray-800 dark:text-gray-200">${formatEuro(catSpent)}</strong></span>
+                            <span class="${remaining < 0 ? 'text-iosRed' : 'text-iosGreen'} font-semibold">
+                                ${remaining < 0 ? 'Überzogen:' : 'Rest:'} ${formatEuro(Math.abs(remaining))}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('total-budget-display').textContent = formatEuroShort(totalBudget);
+            document.getElementById('total-spent-display').textContent = formatEuroShort(totalSpent);
+            const totalRemaining = totalBudget - totalSpent;
+            const remainingEl = document.getElementById('total-remaining-display');
+            remainingEl.textContent = formatEuroShort(totalRemaining);
+            remainingEl.className = `text-base font-bold ${totalRemaining < 0 ? 'text-iosRed' : 'text-iosGreen'}`;
+
+            const logList = document.getElementById('expenses-log-list');
+            logList.innerHTML = '';
+
+            if (expenses.length === 0) {
+                logList.innerHTML = '<p class="text-xs text-iosGray py-2 text-center">Noch keine Ausgaben in diesem Monat gebucht.</p>';
+            } else {
+                expenses.slice().reverse().forEach(exp => {
+                    const cat = categories.find(c => c.id === exp.catId) || { name: 'Sonstiges' };
+                    const item = document.createElement('div');
+                    item.className = 'py-2 flex justify-between items-center text-xs';
+                    item.innerHTML = `
+                        <div>
+                            <div class="font-semibold text-gray-800 dark:text-gray-200">${exp.title}</div>
+                            <div class="text-iosGray">${cat.name} • ${exp.date}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-iosOrange">-${formatEuro(exp.amount)}</span>
+                            <button onclick="deleteExpense('${exp.id}')" class="text-gray-400 hover:text-iosRed">
+                                <i class="ph ph-trash text-base"></i>
+                            </button>
+                        </div>
+                    `;
+                    logList.appendChild(item);
+                });
+            }
+        }
+
+        // --- EXPENSE MODAL LOGIC ---
+        function openExpenseModal(catId, catName) {
+            document.getElementById('expense-cat-id').value = catId;
+            document.getElementById('modal-cat-title').textContent = `Ausgabe: ${catName}`;
+            document.getElementById('expense-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('expense-amount-input').focus();
+            }, 100);
+        }
+
+        function closeExpenseModal() {
+            document.getElementById('expense-modal').classList.add('hidden');
+            document.getElementById('expense-title-input').value = '';
+            document.getElementById('expense-amount-input').value = '';
+        }
+
+        function saveExpense(e) {
+            e.preventDefault();
+            const catId = document.getElementById('expense-cat-id').value;
+            const rawTitle = document.getElementById('expense-title-input').value.trim();
+            const amount = parseFloat(document.getElementById('expense-amount-input').value) || 0;
+
+            const cat = categories.find(c => c.id === catId) || { name: 'Ausgabe' };
+            const title = rawTitle !== '' ? rawTitle : cat.name;
+
+            const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
+            expenses.push({
+                id: Date.now().toString(),
+                catId,
+                title,
+                amount,
+                date: today
+            });
+
+            saveExpensesState();
+            closeExpenseModal();
+        }
+
+        function deleteExpense(id) {
+            expenses = expenses.filter(e => e.id !== id);
+            saveExpensesState();
+        }
+
+        // --- MONTH RESET LOGIC ---
+        function confirmMonthReset() {
+            document.getElementById('reset-confirm-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-confirm-modal').classList.add('hidden');
+        }
+
+        function executeMonthReset() {
+            expenses = [];
+            saveExpensesState();
+            closeResetModal();
+        }
+
+        // --- BUDGET MODAL LOGIC ---
+        function openBudgetModal() {
+            const container = document.getElementById('budget-inputs-container');
+            container.innerHTML = '';
+
+            categories.forEach(cat => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label class="block text-xs font-medium text-iosGray mb-1">${cat.name} Budget (€)</label>
+                    <input type="number" step="1" data-cat-id="${cat.id}" value="${cat.budget}" required
+                        class="budget-input w-full bg-gray-100 dark:bg-gray-800 px-3.5 py-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-iosPrimary">
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('budget-modal').classList.remove('hidden');
+        }
+
+        function closeBudgetModal() {
+            document.getElementById('budget-modal').classList.add('hidden');
+        }
+
+        function saveBudgets(e) {
+            e.preventDefault();
+            const inputs = document.querySelectorAll('.budget-input');
+            inputs.forEach(input => {
+                const catId = input.getAttribute('data-cat-id');
+                const newBudget = parseFloat(input.value) || 0;
+                const cat = categories.find(c => c.id === catId);
+                if (cat) cat.budget = newBudget;
+            });
+
+            saveCategoriesState();
+            closeBudgetModal();
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+    </script>
+</body>
+</html>
